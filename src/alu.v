@@ -1,46 +1,109 @@
 // -----------------------------------------------------------------------------
 // Arquivo: alu.v
 // Estágio: Execute (EX)
-// Descrição: Unidade Lógica e Aritmética. Executa operações matemáticas e 
-// lógicas com base no sinal de controle de 4 bits.
+// Descrição: Unidade Lógica e Aritmética (ALU) do processador RV32I.
+// Executa operações aritméticas, lógicas, comparações e deslocamentos.
 // -----------------------------------------------------------------------------
 
 module ALU (
-    input wire [31:0] a,
-    input wire [31:0] b,
+
+    input wire [31:0] operand_a,
+    input wire [31:0] operand_b,
+
+    // Código da operação que a ALU deve executar
     input wire [3:0] alu_control,
-    
+
     output reg [31:0] result,
     output wire zero
+
 );
 
-    // O sinal 'zero' é fundamental para as instruções de desvio (Branch).
-    // Se a ULA fizer uma subtração (A - B) e o resultado for 0, significa que A == B.
-    assign zero = (result == 32'd0);
+    // -------------------------------------------------------------------------
+    // Códigos de operação da ALU
+    // -------------------------------------------------------------------------
+    // 0000 -> ADD
+    // 0001 -> SUB
+    // 0010 -> SLL
+    // 0011 -> SLT
+    // 0100 -> SLTU
+    // 0101 -> XOR
+    // 0110 -> SRL
+    // 0111 -> SRA
+    // 1000 -> OR
+    // 1001 -> AND
+    // -------------------------------------------------------------------------
 
     always @(*) begin
+
         case (alu_control)
-            4'b0000: result = a & b;                       // AND / ANDI
-            4'b0001: result = a | b;                       // OR / ORI
-            4'b0010: result = a + b;                       // ADD / ADDI / LW / SW
-            4'b0110: result = a - b;                       // SUB / BEQ / BNE
-            4'b0011: result = a ^ b;                       // XOR / XORI
-            4'b0100: result = a << b[4:0];                 // SLL / SLLI (Shift Left Logical)
-            4'b0101: result = a >> b[4:0];                 // SRL / SRLI (Shift Right Logical)
-            
-            // O comando >>> (Arithmetic Shift) em Verilog requer que os números 
-            // sejam tratados como "signed" para preservar o bit de sinal negativo.
-            4'b0111: result = $signed(a) >>> b[4:0];       // SRA / SRAI 
-            
-            // SLT (Set Less Than) - Compara considerando o sinal (Signed)
-            4'b1000: result = ($signed(a) < $signed(b)) ? 32'd1 : 32'd0; 
-            
-            // SLTU (Set Less Than Unsigned) - Compara ignorando o sinal
-            4'b1001: result = (a < b) ? 32'd1 : 32'd0;
-            
-            // Caso de segurança (se receber sinal inválido, joga zero)
-            default: result = 32'd0;
+
+            // ADD
+            // Usado por ADD, ADDI, LW, SW e cálculo de endereço
+            4'b0000: begin
+                result = operand_a + operand_b;
+            end
+
+            // SUB
+            // Usado por SUB e pode auxiliar em comparações
+            4'b0001: begin
+                result = operand_a - operand_b;
+            end
+
+            // SLL - Shift Left Logical
+            // Desloca operand_a para a esquerda
+            4'b0010: begin
+                result = operand_a << operand_b[4:0];
+            end
+
+            // SLT - Set Less Than com sinal
+            // Retorna 1 se operand_a < operand_b considerando sinal
+            4'b0011: begin
+                result = ($signed(operand_a) < $signed(operand_b)) ? 32'd1 : 32'd0;
+            end
+
+            // SLTU - Set Less Than Unsigned
+            // Retorna 1 se operand_a < operand_b sem considerar sinal
+            4'b0100: begin
+                result = (operand_a < operand_b) ? 32'd1 : 32'd0;
+            end
+
+            // XOR
+            4'b0101: begin
+                result = operand_a ^ operand_b;
+            end
+
+            // SRL - Shift Right Logical
+            // Desloca operand_a para a direita preenchendo com zeros
+            4'b0110: begin
+                result = operand_a >> operand_b[4:0];
+            end
+
+            // SRA - Shift Right Arithmetic
+            // Desloca operand_a para a direita preservando o bit de sinal
+            4'b0111: begin
+                result = $signed(operand_a) >>> operand_b[4:0];
+            end
+
+            // OR
+            4'b1000: begin
+                result = operand_a | operand_b;
+            end
+
+            // AND
+            4'b1001: begin
+                result = operand_a & operand_b;
+            end
+
+            // Caso padrão
+            default: begin
+                result = 32'b0;
+            end
+
         endcase
+
     end
+
+    // Sinal zero fica ativo quando o resultado da ALU é zero
+    assign zero = (result == 32'b0);
 
 endmodule
